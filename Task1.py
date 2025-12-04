@@ -1,7 +1,6 @@
 import numpy as np
 from scipy.io import loadmat
 import matplotlib.pyplot as plt
-plt.close('all')
 
 # load data
 water = loadmat('data/dataset/task_1/water/hist_140.mat')
