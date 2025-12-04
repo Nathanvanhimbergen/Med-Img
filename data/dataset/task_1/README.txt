@@ -1,0 +1,5 @@
+This folder contains the data for an ideal detector. The setup is a 140 kVp X-ray source beam passing through 33 mm of water or fat, and the spectrum of the parallel X-rays incident on a single detector pixel is registered. 
+
+You find two folders, one for the water and one for the fat phantom. In both folders, you will find the histograms of the spectrum of the X-rays that incident the detector. The data is stored in three different and equivalent formats: Numpy arrays, Matlab arrays, and plain text files. Please note I haven't tested the Matlab files.
+The first column of the data denotes the centre of the histogram bins in MeV, while the second column denotes the number of registered counts for that bin.
+Please note: In case an event exceeds the limits of the histogram, then it is assigned the highest available energy bin.
