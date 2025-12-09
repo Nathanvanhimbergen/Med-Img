@@ -25,6 +25,9 @@ water_counts_bins = np.array([
     np.sum(water_c[mask_50_inf_w])
 ])
 
+water_counts= np.sum(water_c)
+fat_counts = np.sum(fat_c)
+
 fat_counts_bins = np.array([
     np.sum(fat_c[mask_20_50_f]),
     np.sum(fat_c[mask_50_inf_f])
@@ -101,7 +104,7 @@ plot_bin_counts(
 def contrast_ratio(tissue_counts, water_counts):
     return (tissue_counts - water_counts) * 100 / water_counts
 
-orig_contrast = contrast_ratio(fat_counts_bins, water_counts_bins)
+orig_contrast = contrast_ratio(fat_counts, water_counts)
 weighted_contrast = contrast_ratio(fat_weighted_bins, water_weighted_bins)
 print("Original Contrast Ratios (Fat vs Water):", orig_contrast)
 print("Weighted Contrast Ratios (Fat vs Water):", weighted_contrast)
