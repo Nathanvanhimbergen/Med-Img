@@ -128,6 +128,9 @@ def plot_counts_by_flux(water_counts, fat_counts, labels, beam_fluxes, spectral,
     axes = axes.flatten()
     fig.suptitle('Absolute Detector Counts by Beam Flux and tissue' if spectral else 'Detector Counts without spectral resolution', fontsize=16)
 
+    # set font size globally
+    plt.rcParams.update({'font.size': 12})
+
     for idx, (flux, ax) in enumerate(zip(beam_fluxes, axes)):
         w_bins = water_counts[idx]
         f_bins = fat_counts[idx]
@@ -163,7 +166,7 @@ def plot_counts_by_flux(water_counts, fat_counts, labels, beam_fluxes, spectral,
             # Position bars for >=50 keV bin (two bars side-by-side, starting at 50 keV)
             bars_w2 = ax.bar(50 + width_50_inf/2, w_bins[1], width_50_inf, color='C0', alpha=0.7, edgecolor='black')
             bars_f2 = ax.bar(50 + width_50_inf/2 + width_50_inf, f_bins[1], width_50_inf, color='C1', alpha=0.6, edgecolor='black')
-            
+            ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0), useMathText=True)
             ax.set_xlim(0, 100)
             # Plot weighted raw spectra as overlay (on secondary y-axis for clarity)
             ax2 = ax.twinx()
@@ -172,36 +175,30 @@ def plot_counts_by_flux(water_counts, fat_counts, labels, beam_fluxes, spectral,
             ax2.set_yticks([])  # Hide y-axis ticks
             ax2.set_ylabel('')  # Hide y-axis label
             ax2.set_xticks([20, 50, 90])  # Only show these x-ticks
-            ax2.set_xticklabels(['20', '50 keV', '->\u221E'])
+            ax2.set_xticklabels(['20', '50', '->\u221E [keV]'])
             ax2.spines['right'].set_visible(False)  # Hide right spine
             ax2.set_xlim(0, 100)
             
             # Add annotations
-            ax.text(34, -0.10 * ax.get_ylim()[1], 'Water', ha='center', fontsize=10, weight='bold')
-            ax.text(66, -0.10 * ax.get_ylim()[1], 'Fat', ha='center', fontsize=10, weight='bold')
+            ax.text(27.5, -0.10 * ax.get_ylim()[1], 'Water', ha='center', fontsize=10, weight='bold')
+            ax.text(42.5, -0.10 * ax.get_ylim()[1], 'Fat', ha='center', fontsize=10, weight='bold')
+            ax.text(57.5, -0.10 * ax.get_ylim()[1], 'Water', ha='center', fontsize=10, weight='bold')
+            ax.text(72.5, -0.10 * ax.get_ylim()[1], 'Fat', ha='center', fontsize=10, weight='bold')
+
+        
         else:
             # For single bin, position bar at 50 keV (split between left/right)
             width_bar = 10
             bars_w = ax.bar(45, w_bins[0], width_bar, color='C0', alpha=0.7, edgecolor='black')
             bars_f = ax.bar(55, f_bins[0], width_bar, color='C1', alpha=0.6, edgecolor='black')
-            
+            ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0), useMathText=True)
             ax.set_xlim(25, 75)
-            ax2 = ax.twinx()
-            ax2.plot(33.3333+water_e/3, water_c, color='C0', alpha=0.9, linewidth=2)
-            ax2.plot(33.3333+fat_e/3, fat_c, color='C1', alpha=0.9, linewidth=2)
-            ax2.set_xlim(0, 120)
-            ax2.set_yticks([])  # Hide y-axis ticks
-            ax2.set_ylabel('')  # Hide y-axis label
-            ax2.set_xticks([40, 50, 70])  # Only show these x-ticks
-            ax2.set_xticklabels(['20', '50 keV', '->\u221E'])
-            ax2.spines['right'].set_visible(False)  # Hide right spine
-            ax2.set_xlim(25, 75)
+            ax.set_xticks([40, 50, 70])  # Only show these x-ticks
+            ax.set_xticklabels(['20', '50 keV', '->\u221E'])
+
             # Add annotations
             ax.text(45, -0.10 * ax.get_ylim()[1], 'Water', ha='center', fontsize=10, weight='bold')
             ax.text(55, -0.10 * ax.get_ylim()[1], 'Fat', ha='center', fontsize=10, weight='bold')
-
-        # Mark 50 keV boundary with vertical line
-        # ax.axvline(x=50, color='red', linestyle='--', linewidth=2.5, label='50 keV boundary', zorder=5)
         
         title_suffix = 'Weighted' if spectral else 'Total'
         ax.set_title(f'{title_suffix} Detector Counts - Beam Flux: {flux} photons/s')
@@ -229,11 +226,11 @@ def contrast_ratio(tissue_counts, water_counts, beam_fluxes):
 
 # Run analysis and plot pure PCD
 water_counts_p, fat_counts_p, labels_p, beam_fluxes_p = pure_PCD()
-contrast_ratio(fat_counts_p, water_counts_p, beam_fluxes_p)
+# contrast_ratio(fat_counts_p, water_counts_p, beam_fluxes_p)
 plot_counts_by_flux(water_counts_p, fat_counts_p, labels_p, beam_fluxes_p, spectral=False)
 
 # Run analysis and plot spectral PCD
 water_counts_s, fat_counts_s, labels_s, beam_fluxes_s, water_masks_s, fat_masks_s = spectral_PCD()
-contrast_ratio(fat_counts_s, water_counts_s, beam_fluxes_s)
+# contrast_ratio(fat_counts_s, water_counts_s, beam_fluxes_s)
 plot_counts_by_flux(water_counts_s, fat_counts_s, labels_s, beam_fluxes_s, spectral=True, water_masks=water_masks_s, fat_masks=fat_masks_s)
 

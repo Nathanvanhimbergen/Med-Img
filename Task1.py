@@ -33,26 +33,29 @@ fat_counts_bins = np.array([
     np.sum(fat_c[mask_50_inf_f])
 ])
 
-labels = ['20-50 keV', '>=50 keV']
+labels = ['20-50 keV', '\u2265 50 keV']
 
 # unified plotting function (creates bar chart, no legend, label under each bar)
 def plot_bin_counts(w_bins, f_bins, labels, title, ylabel):
+    # set font size globally
+    plt.rcParams.update({'font.size': 12})
+
     x = np.arange(len(labels))
     width = 0.35
     fig, ax = plt.subplots(figsize=(8,5))
-    bars_w = ax.bar(x - width/2, w_bins, width, color='C0', alpha=0.9)
-    bars_f = ax.bar(x + width/2, f_bins, width, color='C1', alpha=0.9)
+    bars_w = ax.bar(x - width/2, w_bins, width, color='C0', alpha=0.7, edgecolor='black')
+    bars_f = ax.bar(x + width/2, f_bins, width, color='C1', alpha=0.6, edgecolor='black')
 
     max_h = max(np.max(w_bins), np.max(f_bins), 1.0)
     ax.set_ylim(bottom=-0.08 * max_h)  # space below for labels
-
+    ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0), useMathText=True)
     for bar in bars_w:
         center = bar.get_x() + bar.get_width() / 2
         ax.annotate('Water',
                     xy=(center, 0),
                     xytext=(0, -8),
                     textcoords='offset points',
-                    ha='center', va='top', fontsize=9)
+                    ha='center', va='top', fontsize=10, weight='bold')
 
     for bar in bars_f:
         center = bar.get_x() + bar.get_width() / 2
@@ -60,12 +63,12 @@ def plot_bin_counts(w_bins, f_bins, labels, title, ylabel):
                     xy=(center, 0),
                     xytext=(0, -8),
                     textcoords='offset points',
-                    ha='center', va='top', fontsize=9)
+                    ha='center', va='top', fontsize=10, weight='bold')
 
     ax.set_xticks(x)
     ax.set_xticklabels(labels)
     ax.set_ylabel(ylabel)
-    ax.set_title(title)
+    ax.set_title(title, fontsize=16)
     ax.grid(axis='y', linestyle='--', alpha=0.4)
     plt.tight_layout()
     plt.show()
@@ -76,7 +79,7 @@ plot_bin_counts(
     water_counts_bins,
     fat_counts_bins,
     labels,
-    'Detector Counts per Energy Bin (20-50 keV, >=50 keV)',
+    'Detector Counts per Energy Bin (20-50 keV, \u2265 50 keV)',
     'Total Counts'
 )
 
@@ -96,7 +99,7 @@ plot_bin_counts(
     water_weighted_bins,
     fat_weighted_bins,
     labels,
-    'Weighted Detector Counts per Energy Bin (80% for 20-50 keV, 20% for >=50 keV)',
+    'Weighted Detector Counts per Energy Bin (80% for 20-50 keV, 20% for \u2265 50 keV)',
     'Weighted Total Counts'
 )
 
