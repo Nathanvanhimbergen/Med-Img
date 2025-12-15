@@ -161,7 +161,7 @@ class pixel:
     print ("PI /4  " + str(np.pi /4 ))
     return corners, edges, insides
 
-  def scaledImpact(self, maxE = 1, pixelWidth = 200, radius = 100, type ="center"):
+  def scaledImpact(self, maxE = 60, cutoffE = 20, pixelWidth = 200, radius = 100, type ="center"):
     # useCorner, useEdge and useCenter should be 1 , except for debugging
     if (pixelWidth < 2*radius):
       raise ValueError ("the simulation is not valid if pixelWidth < 2 * radius") # Corrected raise
@@ -193,8 +193,14 @@ class pixel:
     # area of the center, all impacts count for 100%
     result[self.nBins-1] += (1 - 2 * radius/pixelWidth)**2
     bins = self.bins/np.pi * maxE
-
     print ( "total energy: " + str(np.inner(result, bins[1:])
+              -maxE/2/self.bins.size))
+    # remove noise
+    cutoffIndex = floor(self.nBins*cutoffE/maxE+0.5)
+    result = result[cutoffIndex:]
+    bins = bins[cutoffIndex:]
+
+    print ( "total energy above " + str(cutoffE)+": "+ str(np.inner(result, bins[1:])
               -maxE/2/self.bins.size))
     return result, bins
 
@@ -214,9 +220,8 @@ class pixel:
     ax.set_xlabel('Impact Value')
     ax.set_ylabel('probability')
     ax.set_title('resolution '+str(self.horResolution)+"x"
-          + str(self.verResolution)+" - "+ str(self.nBins)
-          + " bins " + pText)
-    # ax.set_title('Histogram of Impacts')
+          + str(self.verResolution)+" max "+ str(bin_edges[-1])
+          + " keV " + pText)
 
     # Display the plot
     plt.show()
@@ -401,13 +406,19 @@ myPixel.makeStackedPlot(maxE= 60,pixelWidth=400, type = "center",
 
 
 
-myPixel = pixel(horResolution=200,nBins = 50)
+myPixel = pixel(horResolution=1000,nBins = 60)
 
-hist_counts, bin_edges = myPixel.scaledImpact(maxE=60,pixelWidth=1200, type = "center")
-myPixel.makePlot(hist_counts, bin_edges," pixel = 12 R")
+hist_counts, bin_edges = myPixel.scaledImpact(maxE=60,pixelWidth=200, type = "center")
+myPixel.makePlot(hist_counts, bin_edges," pixel = 2 R")
 
-hist_counts, bin_edges = myPixel.scaledImpact(maxE=60,pixelWidth=800, type = "center")
-myPixel.makePlot(hist_counts, bin_edges," pixel = 8 R")
+hist_counts, bin_edges = myPixel.scaledImpact(maxE=60,pixelWidth=250, type = "center")
+myPixel.makePlot(hist_counts, bin_edges," pixel = 2.5 R")
+
+hist_counts, bin_edges = myPixel.scaledImpact(maxE=60,pixelWidth=500, type = "center")
+myPixel.makePlot(hist_counts, bin_edges," pixel = 5 R")
+
+hist_counts, bin_edges = myPixel.scaledImpact(maxE=60,pixelWidth=1000, type = "center")
+myPixel.makePlot(hist_counts, bin_edges," pixel = 10 R")
 
 myPixel = pixel(horResolution=200,nBins =10)
 
