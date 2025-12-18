@@ -8,7 +8,9 @@ Original file is located at
 """
 
 def bisect(func, low, high, tolerance=1e-8):
-    # bisection algorithm: the value that makes abs(func(x))<tolerance
+    # bisection algorithm: look for x near such that func(x)=0
+    # The bisection stops when the change in x becomes small, not when
+    # the change in func(x) becomes small
     fuLo, fuHi = func(low), func(high)
     assert fuLo * fuHi < 0
     for i in range(54):
@@ -29,34 +31,46 @@ class pixel:
   # Corrected __init__ method name
   def __init__(self, nBins=100,
               horResolution = 100, verResolution = None,
-              edgeResolution = None, verDiff = 1, edgeFactor = 100):
+              edgeResolution = None, verDiff = 1, method = "random"):
+    # horResolution and verResolution are used for the simulation at corners.
+
     self.nBins = ceil(nBins)
-    # self.nBins += self.nBins % 2 # make nBins pair
     self.horResolution = ceil(horResolution)
 
     # Ensure verResolution is always set
+    # it might be good if the vertical resolution is different from
+    # the horizontal resolution
     if (verResolution is None):
       self.verResolution = ceil(horResolution + verDiff)
     else:
       self.verResolution = ceil(verResolution)
 
-    if (edgeResolution is None):
-      self.edgeResolution = ceil(horResolution * edgeFactor)
+    # use random values at corners or try numerical integration?
+    if ("random" == method or "even" == method):
+      self.method = method
     else:
-      self.edgeResolution = ceil(edgeResolution)
+      raise ValueError ("method must be 'random' or 'even'")
 
+  # calculate the effects of corners and edges for a charge cloud
+  # of radius 1. Scaling to realistic values will be done later.
     self.unscaledCorners()
-    self.unscaledEdgesByBisection() # doesn't use edgeFactor
-    #self.unscaledEdges() # uses edgeFactor
+    self.unscaledEdgesByBisection()
 
   def edgepiece(self, d):
+  # calculate the area of a circle that goes over an edge,
+  # if the center is at a distance d from the edge,
+  # for a circle of radius 1.
     if (1< d):
       return 0
     else:
       alfa = np.arccos ( d)
+      # sqrt (r² -d²)
       return alfa - (d*np.sqrt(1-d**2))
 
   def cornerpiece(self, x,y):
+  # calculate the area of the part of  a circle that
+  # has x<0, y<0, if the center is at coordinates (x,y)
+  # for a circle of radius 1.
     if (1 < x**2 + y**2):
       return 0
     else:
@@ -65,43 +79,40 @@ class pixel:
       return (0.5 * (alfaY-alfaX)+x*y
               - 0.5 * x*np.sqrt(1-x**2) - 0.5 * y * np.sqrt(1-y**2))
 
-  def unscaledEdges(self):
-    edges = []
-    insides = []
-
-    for i in range(self.edgeResolution):
-      x = np.random.uniform(0.,1)
-      edgeX = self.edgepiece(x)
-      edges.append(edgeX)
-      insides.append(np.pi-edgeX)
-
-    # now convert to bins
-    # np.histogram returns counts and bin edges. Bin edges has nBins+1 elements.
-    count_overEdges, self.bins = np.histogram(edges, bins=self.nBins
-                                        , range = (0,np.pi))
-    count_insideEdges, self.bins = np.histogram(insides, bins=self.nBins
-                                       , range = (0,np.pi))
-
-    # convert to probabilities
-    self.proba_overEdges = count_overEdges / self.edgeResolution
-    self.proba_insideEdges = count_insideEdges / self.edgeResolution
-    return
+  def defineBins(self):
+  # the limits of the areas
+    # max area is pi * r² = pi
+    self.bins = np.linspace(0,np.pi,self.nBins+1)
 
   def unscaledEdgesByBisection(self):
-    dValues = np.zeros(self.nBins+1)
+  # calculate the probability that a the area over the edge is between
+  # certain limits, for a circle of radius 1,
+  # whose center is at a random distance (less than 1) from an edge,
+
+    self.defineBins()
+    # the corresponding distances from the edge
+    dValues = np.zeros(self.nBins)
+
+    # probabilities that the part over the edge is within limits
     self.proba_overEdges = np.zeros(self.nBins)
+    # probabilities that the main part is within limits
     self.proba_insideEdges = np.zeros(self.nBins)
 
     print( "self.nBins = "+ str(self.nBins))
 
-    self.bins = np.linspace(0,np.pi,self.nBins+1)
-    for i in range(floor(self.nBins/2-0.5), 0, -1):
-      #note: this also works if nBins is odd.
-      # In that case, the first value for d will be half as big,
+    # the area over the edge <= pi/2
+    # the main area >=pi/2
+    # So iterate over half of the bins. Round upward if nBins is odd
+    for i in range(ceil(self.nBins/2-1), 0, -1):
+      #note: if nBins is odd, the first value for d will be half as big,
       # and [i]=[-i-1] so dValue will be added to a bin of overEdges and insideEdges
       dValues[i] = bisect(lambda x: self.edgepiece(x)-self.bins[i], 0, 1)
+      # probability equals the change in distance
       self.proba_overEdges[i] = dValues[i]-dValues[i+1]
-      self.proba_insideEdges[-i-1] += self.proba_overEdges[i]
+      # add probabilities for the remaining part.
+      # dValues [-i-1] = dValues[i]
+      # self.proba_insideEdges[-i-1] = dValues[-i-1]-dValues[-(i+1)-1]
+      self.proba_insideEdges[-i-1] = self.proba_overEdges[i]
 
     # i=0, dValues[0] = 1
     self.proba_overEdges[0] = 1-dValues[1]
@@ -110,31 +121,48 @@ class pixel:
     return
 
   def unscaledCorners(self):
-    nOverCorners = 0
+  # calculate the probabilities that a the area over the edges is between
+  # certain limits, for a circle of radius 1,
+  # whose center is at a random distance (less than 1) from 2 edges of a corner
 
-    self.proba_overCornerEdges = np.zeros(self.nBins)
-    self.proba_overCorners      = np.zeros(self.nBins)
+    self.defineBins() # same as for unscaledEdges()
+    # probalities
+    # - for the area that is still on the pixel
+    # - for the area that is spilled on the opposite corner
+    # - for the area that is spilled over 1 edge
     self.proba_insideCorner      = np.zeros(self.nBins)
+    self.proba_overCornerEdges   = np.zeros(self.nBins)
+    self.proba_overCorners       = np.zeros(self.nBins)
     nOverCorners = 0
 
-    # Placeholder for actual calculation, for now just ensures attributes exist and are arrays
+    # hits will first be counted, then converted to probabilities
     for i in range(self.horResolution):
       corners = []
       edges = []
       insides = []
-      #x = i/self.horResolution # this can lead to artifacts! use random
+      if ("random"== self.method):
+        xArr = np.random.uniform(0.,1,self.verResolution)
+        yArr = np.random.uniform(0.,1,self.verResolution)
+      else:
+        # the use of evenly space values can lead to artifacts!
+        # these artifacts are mitigated if horResolution !+verResolution
+        yArr = np.linspace(0.5/self.verResolution, 1-0.5/self.verResolution
+                           ,self.verResolution)
+        xArr = np.ones(self.verResolution)*(i+0.5)/self.horResolution
+
       for j in range(self.verResolution):
-        #y = j/self.verResolution # this can lead to artifacts! use random
-        x = np.random.uniform(0.,1)
-        y = np.random.uniform(0.,1)
+        x = xArr[j]
+        y = yArr[j]
 
         corner = self.cornerpiece(x,y)
         edgeX = self.edgepiece(x)  - corner
         edgeY = self.edgepiece(y)  - corner
 
-        if (corner > 0):
+        if (corner > 0): # has a probability of pi/4 (quarter circle)
           nOverCorners += 1
           corners.append(corner)
+        # for symmetry reasons, spills over the x-axis are counted
+        # in the same way as spills over the y-axis
         if (edgeX > 0): # should always be true
           edges.append(edgeX)
         if (edgeY > 0): # should always be true
@@ -156,13 +184,13 @@ class pixel:
     self.proba_overCornerEdges   = self.proba_overCornerEdges / total_counts
     self.proba_insideCorner = self.proba_insideCorner / total_counts
 
+    # a small check on the distribution of samples
     print ("total number of corners: " + str(nOverCorners/(self.verResolution*
-                            self.horResolution)))
+                            self.horResolution))) # should approach pi.
     print ("PI /4  " + str(np.pi /4 ))
     return corners, edges, insides
 
   def scaledImpact(self, maxE = 60, cutoffE = 20, pixelWidth = 200, radius = 100, type ="center"):
-    # useCorner, useEdge and useCenter should be 1 , except for debugging
     if (pixelWidth < 2*radius):
       raise ValueError ("the simulation is not valid if pixelWidth < 2 * radius") # Corrected raise
 
@@ -178,34 +206,57 @@ class pixel:
     else:
       raise ValueError ("type must be center, edge or corner") # Corrected raise
 
-    # populated by unscaledEdges
+    # self.proba_overEdges and elf.proba_insideEdges
+    # were populated by unscaledEdges(..)
     # self.proba_insideCorner, self.proba_overCornerEdges, self.proba_overCorners
-    # are populated by unscaledCorners
+    # are populated by unscaledCorners(..)
 
+    # add probabilities:
+    # - of areas that remain on the pixel
+    #   (insideCorner, insideEdges)
+    # - of detections due to impacts on neighbouring pixels
+    #   (overEdges, overCornerEdges)
+    #  - of detections due to impacts on an opposite corner of a cell
+    #    (overCorner)
+    # Probabilities are multiplied by their area (r² for each corner,
+    # r * width for an edge) and divided by the total area (width²)
     result = (( 4 * self.proba_insideCorner +
                 nEdges * self.proba_overCornerEdges +
                 nCorners * self.proba_overCorners)
                 * ((radius/pixelWidth) **2)  +
                 (nEdges * self.proba_overEdges
                 + 4 * self.proba_insideEdges)
-                * (radius/pixelWidth) * (1 - 2 * radius/pixelWidth)
-              )
-    # area of the center, all impacts count for 100%
+                  * (radius/pixelWidth) * (1 - 2 * radius/pixelWidth))
+    # impacts count for 100% in the center area (leave out edges and corners)
     result[self.nBins-1] += (1 - 2 * radius/pixelWidth)**2
-    bins = self.bins/np.pi * maxE
-    print ( "total energy: " + str(np.inner(result, bins[1:])
+
+    # scale to the correct energy
+    self.bins = np.linspace(0,maxE,self.nBins+1)
+
+    # estimate the total energy (using a correction because the average energy
+    # in a bin is lower than its upper limit)
+    print ( "total energy: " + str(np.inner(result, self.bins[1:])
               -maxE/2/self.bins.size))
-    # remove noise
+
+    # remove lowest energies
     cutoffIndex = floor(self.nBins*cutoffE/maxE+0.5)
     result = result[cutoffIndex:]
-    bins = bins[cutoffIndex:]
+    print ( "total energy above " + str(cutoffE)+": "
+                + str(np.inner(result , self.bins[cutoffIndex+1:])
+              -maxE/2/self.bins.size) )
+    return result, self.bins[cutoffIndex:]
 
-    print ( "total energy above " + str(cutoffE)+": "+ str(np.inner(result, bins[1:])
-              -maxE/2/self.bins.size))
-    return result, bins
+  def graphTitle(self):
+    if (self.method == "even"):
+      result = ('resolution '+str(self.horResolution)+"x"
+          + str(self.verResolution))
+    if (self.method == "random"):
+      result = (str(self.horResolution*self.verResolution)+
+                    " random shots in corners")
+    return result + ", max "+ str(self.bins[-1]) + " keV "
 
-  # hint: pass the output of scaledImpact as input for this method
-  def makePlot(self, hist_counts, bin_edges, pText = ""):
+  # the output of scaledImpact is input for this method
+  def makePlot(self, hist_counts, bin_edges, titel = None):
     print("Histogram Counts (bins):")
     print(sum(hist_counts))
     print("\nBin Edges ( "+ str(myPixel.nBins)+ " bins):")
@@ -219,20 +270,21 @@ class pixel:
     # Add labels and title
     ax.set_xlabel('Impact Value')
     ax.set_ylabel('probability')
-    ax.set_title('resolution '+str(self.horResolution)+"x"
-          + str(self.verResolution)+" max "+ str(bin_edges[-1])
-          + " keV " + pText)
+    if (None== titel):
+      ax.set_title(self.graphTitle())
+    else:
+      ax.set_title(titel)
 
     # Display the plot
     plt.show()
 
     return plt
 
-
   def selectSeries(self, pixelWidth = 200, radius = 100, type =None,
              nInsideCorners = 0, nCornerEdges = 0, nOverCorners = 0,
                         nOverEdges = 0, nInsideEdges = 0,
                         useCenter = 0):
+  # allows more choices than calculateImpacts, for debugging and analysis
     print("ninsidecorners = "+str(nInsideCorners))
     print("nCornerEdges = "+str(nCornerEdges))
     print("nOverCorners = "+str(nOverCorners))
@@ -312,8 +364,7 @@ class pixel:
     ax.set_xlabel('detected impact')
     ax.set_ylabel('probability')
     if (None == titel):
-      ax.set_title('Histogram of Impacts for an energy of '+str(maxE)+
-                 ', pixelsize = '+str(pixelWidth/radius)+" R")
+      ax.set_title(self.graphTitle())
     else:
       ax.set_title(titel)
 
@@ -357,7 +408,7 @@ class pixel:
 
 # myPixel = pixel(edgeFactor=200, horResolution=500, verResolution = 500, nBins = 100)
 
-myPixel = pixel(edgeFactor=200, horResolution=20, verResolution = 20, nBins = 200)
+myPixel = pixel(horResolution=1, verResolution = 1, nBins = 200)
 
 myPixel.makeStackedHistograms(maxE=60,pixelWidth=400, type = "",
                               nInsideCorners = 0, nCornerEdges =0 , nOverCorners = 0,
@@ -365,31 +416,31 @@ myPixel.makeStackedHistograms(maxE=60,pixelWidth=400, type = "",
                         useCenter = 0 ,
                         titel = "only edge contributions, pixelsize = 4 R")
 
-myPixel = pixel(edgeFactor=200, horResolution=50, verResolution = 50, nBins = 200)
+myPixel = pixel(method="even", horResolution=50, verResolution = 50, nBins = 200)
 
 myPixel.makeStackedHistograms(maxE=60,pixelWidth=200, type = "center",
                               nInsideCorners = 0, nCornerEdges =0 , nOverCorners = 0,
                         nOverEdges = 4, nInsideEdges = 4,
                         useCenter = 0 ,
-                        titel = "artefacts in corner contributions (too low resolution), pixelsize = 2 R")
+                        titel = "artefacts in corner contributions (50x50 resolution, 200 bins), pixelsize = 2 R")
 
 
 
-myPixel = pixel(edgeFactor=200, horResolution=50, verResolution = 50, nBins = 200)
-
-myPixel.makeStackedHistograms(maxE=60,pixelWidth=200, type = "center",
-                              nInsideCorners = 0, nCornerEdges =0 , nOverCorners = 0,
-                        nOverEdges = 4, nInsideEdges = 4,
-                        useCenter = 0 ,
-                        titel = "(resolution 50x50, 200 bins), pixelsize = 2 R")
-
-myPixel = pixel(edgeFactor=200, horResolution=200, verResolution = 200, nBins = 500)
+myPixel = pixel(horResolution=50, verResolution = 50, nBins = 200)
 
 myPixel.makeStackedHistograms(maxE=60,pixelWidth=200, type = "center",
                               nInsideCorners = 0, nCornerEdges =0 , nOverCorners = 0,
                         nOverEdges = 4, nInsideEdges = 4,
                         useCenter = 0 ,
-                        titel = "artefacts in corner contributions (resolution 200x200, 500 bins), pixelsize = 2 R")
+                        titel = "(2500 random shots, 200 bins), pixelsize = 2 R")
+
+myPixel = pixel(method="even", horResolution=200, verResolution = 200, nBins = 500)
+
+myPixel.makeStackedHistograms(maxE=60,pixelWidth=200, type = "center",
+                              nInsideCorners = 0, nCornerEdges =0 , nOverCorners = 0,
+                        nOverEdges = 4, nInsideEdges = 4,
+                        useCenter = 0
+                      , titel = "artefacts in corner contributions (resolution 200x200, 500 bins), pixelsize = 2 R")
 
 myPixel = pixel(horResolution=500, verResolution = 500, nBins = 150)
 
@@ -397,33 +448,29 @@ myPixel.makeStackedHistograms(maxE=60,pixelWidth=400, type = "center",
                               nInsideCorners = 0, nCornerEdges =0 , nOverCorners = 0,
                         nOverEdges = 4, nInsideEdges = 4,
                         useCenter = 0 ,
-                        titel = "probability of impacts (resolution 500x500, 150 bins), pixelsize = 4 R")
+                        titel = "probability of impacts (250 000 random shots, 150 bins), pixelsize = 4 R")
+
 
 myPixel.makeStackedPlot(maxE= 60,pixelWidth=400, type = "center",
                               nInsideCorners = 4, nCornerEdges =4 , nOverCorners = 4,
                         nOverEdges = 4, nInsideEdges = 4,
-                        useCenter = 0 )
+                        useCenter = 0)
+                        #titel = "probability of impacts (250 000 random shots, 150 bins), pixelsize = 4 R")
 
 
 
-myPixel = pixel(horResolution=1000,nBins = 60)
 
-hist_counts, bin_edges = myPixel.scaledImpact(maxE=60,pixelWidth=200, type = "center")
-myPixel.makePlot(hist_counts, bin_edges," pixel = 2 R")
 
-hist_counts, bin_edges = myPixel.scaledImpact(maxE=60,pixelWidth=250, type = "center")
-myPixel.makePlot(hist_counts, bin_edges," pixel = 2.5 R")
+myPixel = pixel(method= "random", horResolution=1000,verResolution = 1000, nBins = 60)
+
+hist_counts , bin_edges = myPixel.scaledImpact(maxE=60,pixelWidth=200, type = "center")
+myPixel.makePlot(hist_counts, bin_edges , "1 million random shots in corners, max 60 keV, pixel width= 2 R")
+
+hist_counts , bin_edges = myPixel.scaledImpact(maxE=60,pixelWidth=250, type = "center")
+myPixel.makePlot(hist_counts, bin_edges , "1 million random shots in corners, max 60 keV, pixel width= 2.5 R")
 
 hist_counts, bin_edges = myPixel.scaledImpact(maxE=60,pixelWidth=500, type = "center")
-myPixel.makePlot(hist_counts, bin_edges," pixel = 5 R")
+myPixel.makePlot(hist_counts, bin_edges , "1 million random shots in corners, max 60 keV, pixel width= 5 R")
 
-hist_counts, bin_edges = myPixel.scaledImpact(maxE=60,pixelWidth=1000, type = "center")
-myPixel.makePlot(hist_counts, bin_edges," pixel = 10 R")
-
-myPixel = pixel(horResolution=200,nBins =10)
-
-hist_counts, bin_edges = myPixel.scaledImpact(maxE=60,pixelWidth=200, type = "center")
-myPixel.makePlot(hist_counts, bin_edges," pixel = 2 R")
-
-hist_counts, bin_edges = myPixel.scaledImpact(maxE=60,pixelWidth=1200, type = "center")
-myPixel.makePlot(hist_counts, bin_edges," pixel = 4 R")
+hist_counts, bin_edges  = myPixel.scaledImpact(maxE=60,pixelWidth=1000, type = "center")
+myPixel.makePlot(hist_counts, bin_edges , "1 million random shots in corners, max 60 keV, pixel width= 10 R")
