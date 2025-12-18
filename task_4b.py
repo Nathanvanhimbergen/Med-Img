@@ -353,7 +353,7 @@ class pixel:
 
     x = []
     for i in range(len(series)):
-      x.append(self.bins[:-1])#*maxE/np.pi)
+      x.append(self.bins[:-1])#*maxE/np.pi) # don't scale: ax.hist can't handle it.
 
     fig, ax = plt.subplots(figsize=(10, 6))
 
@@ -379,7 +379,8 @@ class pixel:
              nInsideCorners = 0, nCornerEdges = 0, nOverCorners = 0,
                         nOverEdges = 0, nInsideEdges = 0,
                         useCenter = 0):
-    # Create a figure and an axes object
+    # the graphs are not as beautiful as makeStackedHistograms make them
+    # but makeStackedPlot allows scaling of the x-axis.
 
     series, labels = self.selectSeries(pixelWidth, radius, type,
              nInsideCorners, nCornerEdges, nOverCorners,
@@ -434,13 +435,13 @@ myPixel.makeStackedHistograms(maxE=60,pixelWidth=200, type = "center",
                         useCenter = 0 ,
                         titel = "(2500 random shots, 200 bins), pixelsize = 2 R")
 
-myPixel = pixel(method="even", horResolution=200, verResolution = 200, nBins = 500)
+myPixel = pixel(method="random", horResolution=500, verResolution = 500, nBins = 200)
 
 myPixel.makeStackedHistograms(maxE=60,pixelWidth=200, type = "center",
                               nInsideCorners = 0, nCornerEdges =0 , nOverCorners = 0,
                         nOverEdges = 4, nInsideEdges = 4,
                         useCenter = 0
-                      , titel = "artefacts in corner contributions (resolution 200x200, 500 bins), pixelsize = 2 R")
+                      , titel = "250000 random shots, 200 bins, pixelsize = 2 R")
 
 myPixel = pixel(horResolution=500, verResolution = 500, nBins = 150)
 
