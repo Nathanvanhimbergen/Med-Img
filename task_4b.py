@@ -331,7 +331,8 @@ class pixel:
     if (1 == useCenter):
       y = np.zeros(self.proba_insideEdges.size)
       y[self.proba_insideEdges.size-1] = \
-      (radius/pixelWidth) *  (1 - 2 * radius/pixelWidth)**2
+      (1 - 2 * radius/pixelWidth)**2
+      # * (radius/pixelWidth) NO! leave this factor out
       series.append(y)
       labels.append("in the center")
 
@@ -443,16 +444,16 @@ myPixel.makeStackedHistograms(maxE=60,pixelWidth=200, type = "center",
                         useCenter = 0
                       , titel = "250000 random shots, 200 bins, pixelsize = 2 R")
 
-myPixel = pixel(horResolution=500, verResolution = 500, nBins = 150)
+myPixel = pixel(horResolution=500, verResolution = 500, nBins = 60)
 
 myPixel.makeStackedHistograms(maxE=60,pixelWidth=400, type = "center",
                               nInsideCorners = 0, nCornerEdges =0 , nOverCorners = 0,
                         nOverEdges = 4, nInsideEdges = 4,
                         useCenter = 0 ,
-                        titel = "probability of impacts (250 000 random shots, 150 bins), pixelsize = 4 R")
+                        titel = "probability of impacts (250 000 random shots, 60 bins), pixelsize = 4 R")
 
 
-myPixel.makeStackedPlot(maxE= 60,pixelWidth=400, type = "center",
+myPixel.makeStackedPlot(maxE= 60,pixelWidth=500, type = "center",
                               nInsideCorners = 4, nCornerEdges =4 , nOverCorners = 4,
                         nOverEdges = 4, nInsideEdges = 4,
                         useCenter = 0)
@@ -469,6 +470,9 @@ myPixel.makePlot(hist_counts, bin_edges , "1 million random shots in corners, ma
 
 hist_counts , bin_edges = myPixel.scaledImpact(maxE=60,pixelWidth=250, type = "center")
 myPixel.makePlot(hist_counts, bin_edges , "1 million random shots in corners, max 60 keV, pixel width= 2.5 R")
+
+hist_counts, bin_edges = myPixel.scaledImpact(maxE=60,pixelWidth=400, type = "center")
+myPixel.makePlot(hist_counts, bin_edges , "1 million random shots in corners, max 60 keV, pixel width= 4 R")
 
 hist_counts, bin_edges = myPixel.scaledImpact(maxE=60,pixelWidth=500, type = "center")
 myPixel.makePlot(hist_counts, bin_edges , "1 million random shots in corners, max 60 keV, pixel width= 5 R")
